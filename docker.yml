@@ -1,0 +1,81 @@
+- hosts: all
+  vars_prompt:
+         - name: dir
+           private: no
+           prompt: "Enter The Directory Name(Please Put / before name) "
+
+         - name: image
+           private: no
+           prompt: "Enter The Name of Image to Pull "
+
+         - name: os
+           private: no
+           prompt: "Enter the Name of the OS to Launch "
+
+  tasks:
+  - file:
+      state: directory
+      path: "{{ dir }}"
+
+
+  - mount:
+       path: "{{ dir }}"
+       src: "/dev/cdrom"
+       state: mounted
+       fstype: "iso9660"
+
+  - yum_repository:
+          name: "dvd1"
+          baseurl: "{{ dir }}/AppStream"
+          gpgcheck: no
+          description: "This is for AppStream"
+
+  - yum_repository:
+          name: "dvd2"
+          baseurl: "{{ dir }}/BaseOS"
+          gpgcheck: no
+          description: "This is for BaseOS"
+
+  - yum_repository:
+          name: "docker"
+          baseurl: "https://download.docker.com/linux/centos/7/x86_64/stable/"
+          gpgcheck: no
+          description: "This is docker"
+
+  - package:
+          name: "docker-ce-18.06.3.ce-3.el7.x86_64"
+          state: present
+
+  - service:
+          name: "docker"
+          state: started
+
+  - package:
+          name: "python3"
+          state: present
+
+  - pip:
+         name: "docker"
+         state: present
+
+  - community.general.docker_image:
+          name: "{{ image }}"
+          source: pull
+
+  - copy:
+          src: "/root/index.html"
+          dest: "/root/abc/"
+
+  - ansible.posix.firewalld:
+          port: "8100/tcp"
+          state: disabled
+
+  - community.general.docker_container:
+          name: "{{ os }}" 
+          image: "{{ image }}"
+          state: started
+          detach: yes
+          ports: "8100:80"
+          interactive: yes
+          volumes: "/root/abc/:/usr/local/apache2/htdocs/"
+
